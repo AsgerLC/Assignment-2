@@ -1,7 +1,7 @@
 ---
 title: "Assignment 2 - Language Development in ASD - Making predictions"
-author: "Riccardo Fusaroli"
-date: "August 9, 2019"
+author: "Asger, Sophia, Rebecca, Jana, Dora"
+date: "2 okt 2019"
 output: html_document
 ---
 
@@ -100,28 +100,37 @@ CleanUpData <- function(Demo,LU,Word){
   return(Data)
 }
 
-#Loading and cleaning up training data:
+##- Loading and cleaning up training data:
 
-Demo_train <- read.csv("demo_train.csv")
-LU_train <- read.csv("LU_train.csv")
-token_train <- read.csv("token_train.csv")
+#Demo_train <- read.csv("demo_train.csv")
+#LU_train <- read.csv("LU_train.csv")
+#token_train <- read.csv("token_train.csv")
 
-cleaned_train <- CleanUpData(Demo = Demo_train, LU = LU_train, Word = token_train)
-
-
-#Loading and cleaning up test data:
-Demo_test <- read.csv("demo_test.csv")
-LU_test <- read.csv("LU_test.csv")
-tokens_test <- read.csv("token_test.csv")
-
-cleaned_test <- CleanUpData(Demo = Demo_test, LU = LU_test, Word = tokens_test)
+#cleaned_train <- CleanUpData(Demo = Demo_train, LU = LU_train, Word = token_train)
 
 
+#write.csv(cleaned_train, "Cleaned Training Data.csv")
 
+##- Loading and cleaning up test data:
+
+#Demo_test <- read.csv("demo_test.csv")
+#LU_test <- read.csv("LU_test.csv")
+#tokens_test <- read.csv("token_test.csv")
+
+#cleaned_test <- CleanUpData(Demo = Demo_test, LU = LU_test, Word = tokens_test)
+
+#write.csv(cleaned_test, "Cleaned Test Data.csv")
+
+
+##- Loading the already cleaned data
+cleaned_train <- read.csv("Cleaned Training Data.csv")
+cleaned_test <- read.csv("Cleaned Test Data.csv")
+# Cleaning test data of NA's:
+cleaned_test <- subset(cleaned_test, !is.na(CHI_MLU))
 
 #- recreate the models you chose last time (just write the code again and apply it to Train Data)
-trained_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + Ethnicity + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = cleaned_train)
-
+trained_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = cleaned_train)
+summary(trained_model)
 
 #- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
 
@@ -129,10 +138,6 @@ train_predictions <- predict(trained_model)
 
 rmse(cleaned_train$CHI_MLU, train_predictions)
 
-#- create the test dataset (apply the code from assignment 1 or my function to clean up the 3 test datasets)
-# Cleaning test data of NA's:
-
-cleaned_test <- subset(cleaned_test, !is.na(CHI_MLU))
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
 
@@ -143,7 +148,7 @@ rmse(cleaned_test$CHI_MLU, test_predictions)
 #- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 ```
 
-The RMSE jumps from 0.3481 to 0.50 when the model of children's MLU is applied, respectively, to the train data versus the test data.
+The RMSE jumps from 0.351 to 0.493 when the model of children's MLU is applied, respectively, to the train data versus the test data.
 
 ### Exercise 2) Model Selection via Cross-validation (N.B: ChildMLU!)
 
@@ -162,19 +167,16 @@ In this exercise you have to use cross-validation to calculate the predictive er
 
 
 ```{r}
-#- Create the basic model of ChildMLU as a function of Time and Diagnosis (don't forget the random effects!).
+##- Create the basic model of ChildMLU as a function of Time and Diagnosis (don't forget the random effects!).
 
-#Creating the basic model:
+# Creating the basic model:
 
 basic_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + (1|Child.ID) + (0 + Visit|Child.ID), data = cleaned_train)
 
-#- Make a cross-validated version of the model. (Tips: google the function "createFolds";  loop through each fold, train a model on the other folds and test it on the fold)
+#- Make a cross-validated version of the model;  loop through each fold, train a model on the other folds and test it on the fold)
 
 
-# Make folds using createFolds() and attach them to the dataframe
-
-#Creating folds: Option 1.
-p_load(groupdata2)
+#Making folds using the fold() function of the groupdata2 package
 
 cleaned_train <- fold(cleaned_train, k = 5, cat_col = "Diagnosis", id_col = "Child.ID") %>% arrange(.folds)
 
@@ -213,25 +215,25 @@ mean(RMSE)
 RMSE2 <- numeric(5)
 for(i in 1:5){
   #Make two subsets:
-  test_df <- Folded_1 %>%  subset(.folds == i)
-  train_df <- Folded_1 %>%  subset(.folds != i)
+  test_df <- folded_1 %>%  subset(.folds == i)
+  train_df <- folded_1 %>%  subset(.folds != i)
   # make a model where you regress the train_df
-  mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df)
+  mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
   #predict "test_df" based on "mod"
   prediction <- predict(mod, test_df, allow.new.levels = TRUE)
   RMSE2[i] <- rmse(test_df$CHI_MLU, prediction)
 }
 
+#Convergence issues fixed.
 mean(RMSE2)
 
 #A mean RMSE of .5524. Still not great, but better at least. By roundabouts 20% or something. Improvement was made!
-#Unfortunately, I can not get the above for_loop to work with Ethnicity in it. Something about new level "White/Asian"
 
 #- Report the results and comment on them.
 
 #- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
 
-#I would say that includes Ethnicity but I cannot into space with that one.
+####I suppose I could do more here!
 
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
 
@@ -242,7 +244,7 @@ mean_rmse <- numeric(9)
 #This time, of course, we will have to generate a lot of folded dataframes, so the results will sadly be different each time you run the code. I honestly don't feel like saving 10 dataframes with different foldings; this is just an exploratory exercise after all.
 
 for(i in 2:10){
-  cleaned_train <- CleanUpData(Demo = Demo_train, LU = LU_train, Word = token_train)
+  cleaned_train <- read.csv("Cleaned Training Data.csv")
   cleaned_train <- fold(cleaned_train, k = i, cat_col = "Diagnosis", id_col = "Child.ID") %>% arrange(.folds)
   nr_folds[i-1] <- i
   RMSE_plot <- numeric(i)
@@ -251,7 +253,7 @@ for(i in 2:10){
     test_df <- cleaned_train %>%  subset(.folds == j)
     train_df <- cleaned_train %>%  subset(.folds != j)
     # make a model where you regress the train_df
-    mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df)
+    mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df,control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
     #predict "test_df" based on "mod"
     prediction <- predict(mod, test_df, allow.new.levels = TRUE)
     RMSE_plot[j] <- rmse(test_df$CHI_MLU, prediction)
@@ -260,20 +262,25 @@ for(i in 2:10){
     }
   mean_rmse[i-1] <- mean(RMSE_plot)
 }
-#Convergence issues, buuuut:
+
+#No convergence issues!
+
 plot_df <- data.frame(nr_folds, mean_rmse)
+
 View(plot_df)
 range(plot_df$mean_rmse)
 
 folds_plot <- ggplot(plot_df, aes(nr_folds, mean_rmse, colour = nr_folds)); folds_plot + geom_point()
 
-#As a rule, when I run this, the effects of various k-folding schemes on the RMSE are minimal and on a very small scale.
+#As a rule, when I run this, the effects of various k-folding schemes on the RMSE are present, but often pretty small, especially as fold nr gets higher.
 
 folds_rmse_lm <- lm(mean_rmse ~ nr_folds)
 summary(folds_rmse_lm)
 #A cursory linear analysis (Where, again, results will vary every time you run the code) *generally* doesn't show a significant relationship between amount of folds and RMSE.
 
 # Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
+
+# Well, the original cross-validated error up there using the original folded data was .55, whereas when we tested it earlier it was .49. Similar, not too big of a difference, and by all means too large. Perhaps we should look at better models?
 
 ```
 
@@ -292,7 +299,7 @@ You want to evaluate:
 - how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
 
 ```{r}
-# So, we will want to extract Bernie specifically. We want a subset of the data with just Bernie and the TD's (That sounds like a band name by the way).
+# So, we will want to extract Bernie specifically. We want a subset of the data with just Bernie.
 # First job is to find him though. He shoud be in the object "Demo_test" somewhere:
 
 View(Demo_test)
@@ -303,21 +310,37 @@ View(cleaned_test)
 
 bernie <- cleaned_test %>% subset(Child.ID == 2)
 
+
+#And then we want average MLU scores for the other TD kids in the test set for each visit.
 only_TD <- cleaned_train %>% subset(Diagnosis == "TD")
 
+TD_vst_avr <- only_TD %>% group_by(Visit) %>% summarize(mean(CHI_MLU))
 
 
-bernie_model <- lmerTest::lmer(CHI_MLU ~ Visit + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df)
+colnames(TD_vst_avr) <- c("Visit", "avr_MLU")
 
 
-?t.test()
 
-# Now EITHER we could find the mean of Bernie and the mean of TD kids in general, or we could rbind Bernie onto a different dataframe.
+absol_dist <-mean(bernie$CHI_MLU) - TD_vst_avr$avr_MLU
+
+absol_dist #Bernie is smart.
+
+#Second job is to test our favorite model on Bernie.
+trained_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = cleaned_train)
 
 
-test_df <- cleaned_train %>%  subset(.folds == j)
-    train_df <- cleaned_train %>%  subset(.folds != j)
+#And make some predictions
+bernie_predictions <- predict(trained_model, bernie)
 
+error_bernie <- bernie_predictions - bernie$CHI_MLU
+
+#Turn all that into a neat dataframe of predictions and errors.
+
+bernie <- bernie %>% cbind(bernie_predictions, error_bernie)
+
+range(error_bernie)
+
+#Our estimates are... not great.
 
 
 ```

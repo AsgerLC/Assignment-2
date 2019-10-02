@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(include = FALSE)
 ```
 
-# Assignment 2
+# Assignment 2 -  Part 1 - Explaining development
 
 In this assignment you will have to discuss a few important questions (given the data you have). More details below. The assignment submitted to the teachers consists of:
 - a report answering and discussing the questions (so we can assess your conceptual understanding and ability to explain and critically reflect)
