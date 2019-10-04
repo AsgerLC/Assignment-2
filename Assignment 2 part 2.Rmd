@@ -47,12 +47,11 @@ How did your models from last time perform? In this exercise you have to compare
 
 
 ```{r, include = FALSE}
-
+# Loading packages in a most peculiar way
 pacman::p_load(pacman, readr,dplyr,stringr,lmerTest,Metrics,caret, merTools, groupdata2)
 
 
-## Clean up function, included to inspire you
-
+## Clean up function
 CleanUpData <- function(Demo,LU,Word){
   
   Speech <- merge(LU, Word) %>% 
@@ -93,8 +92,8 @@ CleanUpData <- function(Demo,LU,Word){
          "1" = "M",
          "2" = "F"),
       Diagnosis = recode(Diagnosis,
-         "A"  = "TD",
-         "B"  = "ASD")
+         "A"  = "ASD",
+         "B"  = "TD")
     )
   Data = subset(Data, !is.na(CHI_MLU))
   return(Data)
@@ -102,50 +101,50 @@ CleanUpData <- function(Demo,LU,Word){
 
 ##- Loading and cleaning up training data:
 
-#Demo_train <- read.csv("demo_train.csv")
-#LU_train <- read.csv("LU_train.csv")
-#token_train <- read.csv("token_train.csv")
+Demo_train <- read.csv("demo_train.csv")
+LU_train <- read.csv("LU_train.csv")
+token_train <- read.csv("token_train.csv")
 
-#cleaned_train <- CleanUpData(Demo = Demo_train, LU = LU_train, Word = token_train)
+data_train <- CleanUpData(Demo = Demo_train, LU = LU_train, Word = token_train)
 
-
-#write.csv(cleaned_train, "Cleaned Training Data.csv")
+#Writing a csv file with the cleaned data
+write.csv(data_train, "Cleaned Training Data.csv")
 
 ##- Loading and cleaning up test data:
 
-#Demo_test <- read.csv("demo_test.csv")
-#LU_test <- read.csv("LU_test.csv")
-#tokens_test <- read.csv("token_test.csv")
+Demo_test <- read.csv("demo_test.csv")
+LU_test <- read.csv("LU_test.csv")
+tokens_test <- read.csv("token_test.csv")
 
-#cleaned_test <- CleanUpData(Demo = Demo_test, LU = LU_test, Word = tokens_test)
+data_test <- CleanUpData(Demo = Demo_test, LU = LU_test, Word = tokens_test)
 
-#write.csv(cleaned_test, "Cleaned Test Data.csv")
+write.csv(data_test, "Cleaned Test Data.csv")
 
 
-##- Loading the already cleaned data
-cleaned_train <- read.csv("Cleaned Training Data.csv")
-cleaned_test <- read.csv("Cleaned Test Data.csv")
-# Cleaning test data of NA's:
-cleaned_test <- subset(cleaned_test, !is.na(CHI_MLU))
+##- For future reference, the above can be skipped if necessary, and the following code used instead (now that we have csv's of the clean data)
+#data_train <- read.csv("Cleaned Training Data.csv")
+#data_test <- read.csv("Cleaned Test Data.csv")
 
 #- recreate the models you chose last time (just write the code again and apply it to Train Data)
-trained_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = cleaned_train)
-summary(trained_model)
 
-#- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
+trained_mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = data_train, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
 
-train_predictions <- predict(trained_model)
+# Summarizing the model
+summary(trained_mod) # Everything is still significant.
 
-rmse(cleaned_train$CHI_MLU, train_predictions)
+
+#- calculate performance of the model on the training data: root mean square error is a good measure.
+
+train_predictions <- predict(trained_mod)
+
+rmse(data_train$CHI_MLU, train_predictions) # 0.35 root mean square error.
 
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
 
-test_predictions <- predict(trained_model, cleaned_test)
+test_predictions <- predict(trained_mod, data_test)
 
-rmse(cleaned_test$CHI_MLU, test_predictions)
-
-#- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
+rmse(data_test$CHI_MLU, test_predictions) # 0.49, i.e. close to 50%. Ouch.
 ```
 
 The RMSE jumps from 0.351 to 0.493 when the model of children's MLU is applied, respectively, to the train data versus the test data.
@@ -171,27 +170,29 @@ In this exercise you have to use cross-validation to calculate the predictive er
 
 # Creating the basic model:
 
-basic_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + (1|Child.ID) + (0 + Visit|Child.ID), data = cleaned_train)
+basic_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + (1|Child.ID) + (0 + Visit|Child.ID), data = data_train)
 
-#- Make a cross-validated version of the model;  loop through each fold, train a model on the other folds and test it on the fold)
+#- Make a cross-validated version of the model;  loop through each fold, train a model on the other folds and test it on the fold.
 
 
 #Making folds using the fold() function of the groupdata2 package
 
-cleaned_train <- fold(cleaned_train, k = 5, cat_col = "Diagnosis", id_col = "Child.ID") %>% arrange(.folds)
+data_train <- fold(data_train, k = 5, cat_col = "Diagnosis", id_col = "Child.ID") %>% arrange(.folds)
 
-#Now, I am unsure if fold() always folds the same way, but I wager it doesn't. So, when I did this exercise originally, I elected to save the current folded dataframe as "Folded Data 1", using the code:
+#Since fold() doesn't always fold the same way, we elected to save our first iteration of the folded dataframe as "Folded Data 1", using the code:
 
-# - write.csv(cleaned_train, "Folded Data 1.csv")
+#write.csv(data_train, "Folded Data 1.csv")
 
-## That line of code is text now. If I did it again, it would ruin the whole point.
+## That line of code is text now. If we did it again, it would ruin the whole point.
 
-#I now retrieve that original folded dataframe, which I will use as much as possible from now on:
+#We now retrieve that original folded dataframe, which we will use as much as possible from now on:
 folded_1 <- read.csv("Folded Data 1.csv")
 
 #We can now use the folded dataframe in a for loop to cross validate our basic model:
 
+# First we make a vector to house the RMSE scores the for loop will generate:
 RMSE <- numeric(5)
+
 #For loop for the basic model
 for(i in 1:5){
   #Make two subsets:
@@ -205,10 +206,9 @@ for(i in 1:5){
 }
 
 
-#we got a mean score of:
+#we got a mean score of
 mean(RMSE)
-#0.7598 RMSE.
-#...Which is not good. But remember, this was the basic model.
+#0.7569 RMSE... Which is not good. But after all, this was the basic model.
 
 #For loop for the hopefully better model (Again, with the original folded dataframe)
 
@@ -227,13 +227,14 @@ for(i in 1:5){
 #Convergence issues fixed.
 mean(RMSE2)
 
-#A mean RMSE of .5524. Still not great, but better at least. By roundabouts 20% or something. Improvement was made!
+#A mean RMSE of .541. Still not great, but better at least. By roundabouts 20% or something. Improvement was made!
 
 #- Report the results and comment on them.
 
 #- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
 
-####I suppose I could do more here!
+##========
+##========< NOT FINISHED YET 
 
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
 
@@ -241,17 +242,17 @@ mean(RMSE2)
 nr_folds <- numeric(9)
 mean_rmse <- numeric(9)
 
-#This time, of course, we will have to generate a lot of folded dataframes, so the results will sadly be different each time you run the code. I honestly don't feel like saving 10 dataframes with different foldings; this is just an exploratory exercise after all.
+#This time, of course, we will have to generate a lot of folded dataframes, so the results will sadly be different each time you run the code. Doing otherwise would require saving 9 dataframes with different foldings, which we didn't do; this is just an exploratory exercise after all.
 
 for(i in 2:10){
-  cleaned_train <- read.csv("Cleaned Training Data.csv")
-  cleaned_train <- fold(cleaned_train, k = i, cat_col = "Diagnosis", id_col = "Child.ID") %>% arrange(.folds)
+  data_train <- read.csv("Cleaned Training Data.csv")
+  data_train <- fold(data_train, k = i, cat_col = "Diagnosis", id_col = "Child.ID") %>% arrange(.folds)
   nr_folds[i-1] <- i
   RMSE_plot <- numeric(i)
     for (j in 1:i){
     #Make two subsets:
-    test_df <- cleaned_train %>%  subset(.folds == j)
-    train_df <- cleaned_train %>%  subset(.folds != j)
+    test_df <- data_train %>%  subset(.folds == j)
+    train_df <- data_train %>%  subset(.folds != j)
     # make a model where you regress the train_df
     mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df,control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
     #predict "test_df" based on "mod"
@@ -263,20 +264,20 @@ for(i in 2:10){
   mean_rmse[i-1] <- mean(RMSE_plot)
 }
 
-#No convergence issues!
-
+# Saving the number of folds and mean RMSE into a dataframe
 plot_df <- data.frame(nr_folds, mean_rmse)
-
 View(plot_df)
+
+# Examining the range of mean RMSE
 range(plot_df$mean_rmse)
 
+# Plotting RMSE as a function of number of folds
 folds_plot <- ggplot(plot_df, aes(nr_folds, mean_rmse, colour = nr_folds)); folds_plot + geom_point()
 
-#As a rule, when I run this, the effects of various k-folding schemes on the RMSE are present, but often pretty small, especially as fold nr gets higher.
-
+# Fitting a linear regression to the data with mean RMSE as a funtion of the number of folds
 folds_rmse_lm <- lm(mean_rmse ~ nr_folds)
 summary(folds_rmse_lm)
-#A cursory linear analysis (Where, again, results will vary every time you run the code) *generally* doesn't show a significant relationship between amount of folds and RMSE.
+# A cursory linear analysis (Where, again, results will vary every time you run the code) *generally* doesn't show a significant relationship between amount of folds and RMSE.
 
 # Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
 
@@ -284,11 +285,13 @@ summary(folds_rmse_lm)
 
 ```
 
-[HERE GOES YOUR ANSWER]
+Initial 5-fold cross-validation of our model provide a mean RMSE of .541, which obviously is not ideal, but is fairly close to the root mean square error we got when we predicted the test data earlier. In other words, it seems like the RMSE estimate of the cross validation is reliable (and that our model doesn't generalize well).
+
+Also, it seems that adding more folds has a negligible effect on mean RMSE (it still fluctuates around .55)
 
 ### Exercise 3) Assessing the single child
 
-Let's get to business. This new kiddo - Bernie - has entered your clinic. This child has to be assessed according to his group's average and his expected development.
+Let's get down to business. This new kiddo - Bernie - has entered your clinic. This child has to be assessed according to his group's average and his expected development.
 
 Bernie is one of the six kids in the test dataset, so make sure to extract that child alone for the following analysis.
 
@@ -303,52 +306,50 @@ You want to evaluate:
 # First job is to find him though. He shoud be in the object "Demo_test" somewhere:
 
 View(Demo_test)
-View(cleaned_test)
+View(data_test)
 # Some eyeballing of these two reveals that Bernie is a TD kid with an ADOS score at visit 1 of 7, which marks him as Child.ID = 2 in the test dataset.
 
 # So we want a subset of the test data that only includes him. We will name this dataframe 'bernie'
 
-bernie <- cleaned_test %>% subset(Child.ID == 2)
+bernie <- data_test %>% subset(Child.ID == 2)
 
 
 #And then we want average MLU scores for the other TD kids in the test set for each visit.
-only_TD <- cleaned_train %>% subset(Diagnosis == "TD")
+#First we make a dataframe with only TD kids
+only_TD <- data_train %>% subset(Diagnosis == "TD")
 
+#Then we group by Visit and summarize mean CHI_MLU
 TD_vst_avr <- only_TD %>% group_by(Visit) %>% summarize(mean(CHI_MLU))
-
-
+#We rename the columns because
 colnames(TD_vst_avr) <- c("Visit", "avr_MLU")
 
+#We calculate absolute
 
-
-absol_dist <-mean(bernie$CHI_MLU) - TD_vst_avr$avr_MLU
+absol_dist <- bernie$CHI_MLU - TD_vst_avr$avr_MLU
 
 absol_dist #Bernie is smart.
 
 #Second job is to test our favorite model on Bernie.
-trained_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = cleaned_train)
-
+trained_model <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = data_train, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
 
 #And make some predictions
 bernie_predictions <- predict(trained_model, bernie)
 
 error_bernie <- bernie_predictions - bernie$CHI_MLU
 
+error_bernie
+# The prediction at the 6th visit seems to be very close to Bernie's actual score (if a little higher). The difference between our predictions and Bernie's scores is smaller than the difference between Bernie and the other TD kids.
+
 #Turn all that into a neat dataframe of predictions and errors.
-
 bernie <- bernie %>% cbind(bernie_predictions, error_bernie)
-
-range(error_bernie)
-
-#Our estimates are... not great.
-
 
 ```
 
+In terms of absolute distance from the mean of his group, Bernie appears to be more talktative than the average TD kid in the train dataset. All of the derived distances were positive (Bernie is above average at each visit).
+The predictions made by our model for Bernie's linguistic performance at the 6th visit is very close to Bernie's actual score (only .003 morphemes off prediction, which is essentially nothing).
+The difference between our predictions and Bernie's scores is smaller than the difference between Bernie and the other TD kids, indicating that our model (at least in Bernie's case) is not all bad.
 
-[HERE GOES YOUR ANSWER]
-
-### OPTIONAL: Exercise 4) Model Selection via Information Criteria
+### OPTIONAL: Exercise 4) Model Selection via Information Criteria.
 Another way to reduce the bad surprises when testing a model on new data is to pay close attention to the relative information criteria between the models you are comparing. Let's learn how to do that!
 
 Re-create a selection of possible models explaining ChildMLU (the ones you tested for exercise 2, but now trained on the full dataset and not cross-validated).
