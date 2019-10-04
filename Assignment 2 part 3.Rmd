@@ -1,7 +1,7 @@
 ---
 title: "Assignment 2 Part 3 - Language Development in ASD - Power and simulations"
-author: "[YOUR NAME]"
-date: "[DATE]"
+author: "Asger, Rebecca, Sophia, Jana, Dora"
+date: "04-10-2019"
 output: html_document
 ---
 
@@ -47,7 +47,7 @@ You will be using:
 pacman::p_load(pacman, tidyverse, lmerTest, readr,dplyr,stringr,lmerTest,Metrics,caret, merTools, groupdata2, simr)
 
 
-#Data loading, Kenneth Style
+# Data loading, Riccardo Style!
 
 
 CleanUpData <- function(Demo,LU,Word){
@@ -97,131 +97,54 @@ CleanUpData <- function(Demo,LU,Word){
   return(Data)
 }
 
-# Training Data
-#setwd('~/Dropbox/2019 - methods 3/Assignments19/Assignment2/solutions/')
+# Loading the Training Data
 Demo <- read_csv('demo_train.csv')
 LU <- read_csv('LU_train.csv')
 Word <- read_csv('token_train.csv')
 
-TrainData <- CleanUpData(Demo,LU,Word)
+train_data <- CleanUpData(Demo,LU,Word)
 
+# Loading the Test Data
 Demo <- read_csv('demo_test.csv')
 LU <- read_csv('LU_test.csv')
 Word <- read_csv('token_test.csv')
 
-TestData <- CleanUpData(Demo,LU,Word)
+test_data <- CleanUpData(Demo,LU,Word)
 
-# merge training and testing
-Data <- merge(TrainData, TestData, all = T)
+# Merging training and testing data
+data <- merge(train_data, test_data, all = T)
 
-Data <- Data[complete.cases(Data[,c("CHI_MLU","Visit","Diagnosis","verbalIQ1","Child.ID")]),]
-Data$Child.ID <- as.factor(Data$Child.ID)
+# Removing the NA's/incomplete cases
+data <- data[complete.cases(data[,c("CHI_MLU","Visit","Diagnosis","verbalIQ1","Child.ID")]),]
 
-#The way Kenneth does it
-model_K <- lmer(CHI_MLU ~ Visit * Diagnosis + (1+Visit|Child.ID), Data, REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
+# Turning Child.ID into a factor
+data$Child.ID <- as.factor(data$Child.ID)
 
-sim = powerSim(model_K , fixed("Diagnosis"), nsim = 50, seed = 1, progress = F) 
-sim
+# Defining our favourite model.
+fav <- lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = data, REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE, optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
+summary(fav) # Everything is still significant, wonderful and bliss.
 
+# Simulating the power of our interaction effect
 
-fixef(model_K)["DiagnosisTD"] <- 0.4
+# First we evaluate power for our interaction effect.
+favsim = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 50, seed = 1, progress = F) 
+favsim # Power of 100%! Of course, this is an observed power calculations.
 
-sim2 = powerSim(model_K , fixed("Diagnosis"), nsim = 50, seed = 1, progress = F) 
-sim2
+# And now for verbal IQ at visit 1
+vIQsim = powerSim(fav, fixed("verbalIQ1"), nsim = 50, seed = 1, progress = F)
+vIQsim #100% power!
 
-#Now for visit:
-
-sim3 = powerSim(model_K, fixed("Visit"), nsim = 50, seed = 1, progress = F)
-sim3
-
-
-    ## Power for predictor 'Visit', (95% confidence interval):
-    ##        0.00% ( 0.00,  7.11)
-    ## 
-    ## Test: unknown test
-    ##       Effect size for Visit is 0.13
-    ## 
-    ## Based on 50 simulations, (50 warnings, 50 errors)
-    ## alpha = 0.05, nrow = 387
-    ## 
-    ## Time elapsed: 0 h 0 m 4 s
-    ## 
-    ## nb: result might be an observed power calculation
-
-#**50 errors**, that is a problem (if there is any errors don’t worry about the power). Lets examine:
+# Mother's MLU
+momsim = powerSim(fav, fixed("verbalIQ1"), nsim = 50, seed = 1, progress = F)
+momsim #100% Power!
 
 
-print(sim3$errors$message[1])
-
-
-    ## [1] "Models have either equal fixed mean stucture or are not nested"
-print(sim3$warnings$message[1])
-
-    ## [1] "Main effect (Visit) was tested but there were interactions."
-
-##Holy crap, all it is complaining about is the presence of an interaction, and here I spent hours trying to figure out why it didn't work. Bad function structure indeed.
-
-
-#And now for the interaction
-fixef(model_K)["Visit:DiagnosisTD"] <- 0.1 # let's try setting a fixed ef
-powerSim(model_K, fixed("Visit:Diagnosis"), nsim = 50, seed = 1, progress = F)
-
-#Hmm, power of 87%. Not bad. But good enough?
-
-model_K <- extend(model_K, along = "Child.ID", n = 120) #extend data along child ID
+fav <- extend(fav, along = "Child.ID", n = 120) #extend data along child ID to simulate 120 participants.
 
 # plot the powercurve
-power_curveV1 = powerCurve(model_K, fixed("Visit:Diagnosis"), along = "Child.ID", 
-                  nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F) # waaay to few sim
-# break is a which interval is should do a power calculations (this simply says every 5th child)
-plot(power_curveV1)
+power_curve = powerCurve(fav, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
 
-#Contrary to Kenneth again, I find that our participant number is fine and dandy. I think we need to run more sims.
-
-
-
-#Loading the csv's of the data cleaned last time
-
-power_train <- read.csv("Cleaned Training Data.csv")
-power_test <- read.csv("Cleaned Test Data.csv")
-
-all_power <- rbind(power_train, power_test)
-
-all_power$Child.ID <- as.factor(all_power$Child.ID)
-
-#The way Kenneth does it (with my own dataframe added)
-interact_mod <- lmer(CHI_MLU ~ Visit * Diagnosis + (1+Visit|Child.ID), all_power, REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
-
-
-
-
-
-
-
-
-sim = powerSim(interact_mod, fixed("Diagnosis"), nsim = 50, progress = F)
-sim
-#I get widely different power results, but at least I get results. Alright, let's try with Visit instead.
-
-sim2 = powerSim(interact_mod, fixed("Visit"), nsim = 50, progress = F)
-sim2
-
-
-
-#Ensuring Child.ID is the right type of variable
-
-
-#Removing incomplete cases:
-unlimited_power <- unlimited_power[complete.cases(unlimited_power[,c("CHI_MLU", "Visit", "Diagnosis", "verbalIQ1", "Child.ID")]),]
-
-#- Fitting our favourite mode
-power_model <- lmer(CHI_MLU ~ Visit + (1|Child.ID) + (0 + Visit|Child.ID), unlimited_power, REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
-summary(power_model)
-
-fixef(power_model)["Visit"] <- 0.3
-
-powerSim(power_model, fixed("Visit"), nsim = 50, progress = F)
-
+plot(power_curve)  # Interestingly, we get power of 100% even for 10 participants. Again, observed power calculations.
 
 ```
 
@@ -237,6 +160,60 @@ How would you perform a more conservative power analysis?
 
 ```{r}
 
+# First we specify the smallest effect of interest of the interaction between visit and diagnosis.
+
+fixef(fav)["Visit:DiagnosisTD"] <- 0.5 # we set the fixed effect to 0.5; a difference of half a morpheme across time and diagnosis seems to be worth paying attention to.
+favsim = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 50, seed = 1, progress = F) 
+favsim # Again, we get power of 100%. Which might not be that informative since, technically, the effect size we got for the interaction effect was exactly 0.5. (We agreed on a 0.5 effect size before actually looking at what the effect size was).
+
+
+fixef(fav)["Visit:DiagnosisTD"] <- 0.05 # Just for fun (since an effect of 0.5 gives us very high power), let's try setting the fixed effect to 0.05.
+notfavsim = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 50, seed = 1, progress = F) 
+notfavsim # Power of 41.10%. In other words, very low power indeed.
+
+
+fav <- extend(fav, along = "Child.ID", n = 120) #extend data along child ID to simulate 120 participants.
+
+# plot the powercurve of the interaction, for an effect size of 0.05
+power_curve = powerCurve(fav, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+
+plot(power_curve)  
+power_curve # Roundabouts 85 participants would be necessary to detect an effect size of such small magnitude 80% of the time.
+
+
+
+#Now for verbal IQ at visit 1:
+fixef(fav)["verbalIQ1"] <- 0.1 # We expect verbal IQ at visit 1 to account for a less dramatic difference in the kids MLU, than Visit and Diagnosis.
+vIQsim = powerSim(fav, fixed("verbalIQ1"), nsim = 50, seed = 1, progress = F)
+vIQsim #100% powaaaa!
+
+
+# We make the power curve and plot it
+IQ_curve = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+plot(IQ_curve)
+IQ_curve
+# 100% power with 10 participants? Either we are doing something wrong or the effect is very robust (which makes sense; verbal IQ and Child MLU seem to measure the same).
+
+
+# And now for the mother's MLU
+fixef(fav)["MOT_MLU"] <- 0.1 # We likewise expect mother's MLU at visit 1 to account for a less dramatic difference in the kids MLU, than Visit and Diagnosis.
+momsim = powerSim(fav, fixed("MOT_MLU"), nsim = 50, seed = 1, progress = F)
+momsim #80% Power! [Probably needs more sims]
+
+# We make the power curve and plot it
+mom_curve = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+plot(mom_curve)
+mom_curve
+# We need more participants than 120 to get a proper estimate power.
+
+
+fav <- extend(fav, along = "Child.ID", n = 150) #extend data along child ID to simulate 300 participants.
+
+# plot the powercurve
+mom_curve2 = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 150, by = 5), seed = 1, progress = F)
+mom_curve2
+plot(mom_curve2)  # Interestingly, we get power of 100% even for 10 participants. That is quite probably a little extreme, but then again, 0.5 is a big effect.
+
 ```
 
 
@@ -245,5 +222,46 @@ How would you perform a more conservative power analysis?
 Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
 
 ```{r}
+# Redoing all the power analyses with 30 participants.
 
+fixef(fav)["Visit:DiagnosisTD"] <- 0.05
+int_30_curve = powerCurve(fav, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 10, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
+
+int_30_curve
+plot(int_30_curve)
+
+#Now for verbal IQ at visit 1:
+fixef(fav)["verbalIQ1"] <- 0.1
+vIQ_30_curve = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 10, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
+vIQ_30_curve
+plot(vIQ_30_curve)
+
+vIQsim #100% powaaaa!
+
+
+# We make the power curve and plot it
+IQ_curve = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+plot(IQ_curve)
+IQ_curve
+# 100% power with 10 participants? Either we are doing something wrong or the effect is very robust (which makes sense; verbal IQ and Child MLU seem to measure the same).
+
+
+# And now for the mother's MLU
+fixef(fav)["MOT_MLU"] <- 0.1 # We likewise expect mother's MLU at visit 1 to account for a less dramatic difference in the kids MLU, than Visit and Diagnosis.
+momsim = powerSim(fav, fixed("MOT_MLU"), nsim = 50, seed = 1, progress = F)
+momsim #80% Power! [Probably needs more sims]
+
+# We make the power curve and plot it
+mom_curve = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+plot(mom_curve)
+mom_curve
+# We need more participants than 120 to get a proper estimate power.
+
+
+fav <- extend(fav, along = "Child.ID", n = 150) #extend data along child ID to simulate 300 participants.
+
+# plot the powercurve
+mom_curve2 = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 150, by = 5), seed = 1, progress = F)
+mom_curve2
+plot(mom_curve2)  # Interestingly, we get power of 100% even for 10 participants. That is quite probably a little extreme, but then again, 0.5 is a big effect.
 ```
