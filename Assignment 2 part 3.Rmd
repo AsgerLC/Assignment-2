@@ -226,7 +226,6 @@ Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). 
 
 fixef(fav)["Visit:DiagnosisTD"] <- 0.05
 int_30_curve = powerCurve(fav, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 10, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
-
 int_30_curve
 plot(int_30_curve)
 
@@ -236,32 +235,16 @@ vIQ_30_curve = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 10
 vIQ_30_curve
 plot(vIQ_30_curve)
 
-vIQsim #100% powaaaa!
+#100% power at 9 participants!
 
 
-# We make the power curve and plot it
-IQ_curve = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
-plot(IQ_curve)
-IQ_curve
-# 100% power with 10 participants? Either we are doing something wrong or the effect is very robust (which makes sense; verbal IQ and Child MLU seem to measure the same).
+#Now for verbal IQ at visit 1:
+fixef(fav)["MOT_MLU"] <- 0.1
+mom_30_curve = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
+mom_30_curve
+plot(mom_30_curve)
+
+#40% power at 30 participants. *Sad trombone sound*.
 
 
-# And now for the mother's MLU
-fixef(fav)["MOT_MLU"] <- 0.1 # We likewise expect mother's MLU at visit 1 to account for a less dramatic difference in the kids MLU, than Visit and Diagnosis.
-momsim = powerSim(fav, fixed("MOT_MLU"), nsim = 50, seed = 1, progress = F)
-momsim #80% Power! [Probably needs more sims]
-
-# We make the power curve and plot it
-mom_curve = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
-plot(mom_curve)
-mom_curve
-# We need more participants than 120 to get a proper estimate power.
-
-
-fav <- extend(fav, along = "Child.ID", n = 150) #extend data along child ID to simulate 300 participants.
-
-# plot the powercurve
-mom_curve2 = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 150, by = 5), seed = 1, progress = F)
-mom_curve2
-plot(mom_curve2)  # Interestingly, we get power of 100% even for 10 participants. That is quite probably a little extreme, but then again, 0.5 is a big effect.
 ```
