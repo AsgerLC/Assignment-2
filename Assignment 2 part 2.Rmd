@@ -144,7 +144,7 @@ rmse(data_train$CHI_MLU, train_predictions) # 0.35 root mean square error.
 
 test_predictions <- predict(trained_mod, data_test)
 
-rmse(data_test$CHI_MLU, test_predictions) # 0.49, i.e. close to 50%. Ouch.
+rmse(data_test$CHI_MLU, test_predictions) # 0.49. Ouch.
 ```
 
 The RMSE jumps from 0.351 to 0.493 when the model of children's MLU is applied, respectively, to the train data versus the test data.
@@ -228,6 +228,25 @@ for(i in 1:5){
 mean(RMSE2)
 
 #A mean RMSE of .541. Still not great, but better at least. By roundabouts 20% or something. Improvement was made!
+
+
+
+RMSE3 <- numeric(5)
+for(i in 1:5){
+  #Removing NA's
+  folded_1 <- folded_1[complete.cases(folded_1[,"Socialization"]),]
+  #Make two subsets:
+  test_df <- folded_1 %>%  subset(.folds == i)
+  train_df <- folded_1 %>%  subset(.folds != i)
+  # make a model where you regress the train_df
+  mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + types_MOT + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
+  #predict "test_df" based on "mod"
+  prediction <- predict(mod, test_df, allow.new.levels = TRUE)
+  RMSE3[i] <- rmse(test_df$CHI_MLU, prediction)
+}
+mean(RMSE3)
+
+
 
 #- Report the results and comment on them.
 

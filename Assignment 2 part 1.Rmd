@@ -2,7 +2,9 @@
 title: "Assignment 2 - Part 1"
 author: "Asger, Sophia, Rebecca, Jana, Dora"
 date: "2 okt 2019"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
    
 ```{r setup, include=FALSE}
