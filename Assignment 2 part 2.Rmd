@@ -230,21 +230,23 @@ mean(RMSE2)
 #A mean RMSE of .541. Still not great, but better at least. By roundabouts 20% or something. Improvement was made!
 
 
-
 RMSE3 <- numeric(5)
 for(i in 1:5){
-  #Removing NA's
-  folded_1 <- folded_1[complete.cases(folded_1[,"Socialization"]),]
-  #Make two subsets:
+  # Make two subsets:
   test_df <- folded_1 %>%  subset(.folds == i)
   train_df <- folded_1 %>%  subset(.folds != i)
   # make a model where you regress the train_df
-  mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + types_MOT + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
+  mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis*verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
   #predict "test_df" based on "mod"
   prediction <- predict(mod, test_df, allow.new.levels = TRUE)
   RMSE3[i] <- rmse(test_df$CHI_MLU, prediction)
 }
-mean(RMSE3)
+mean(RMSE3) # Adding interaction effects with Verbal IQ at visit 1 lowers the RMSE... by 0.04 morphemes of error. Which is almost nothing. We also tried doing a four-way interaction between visit, diagnosis, verbal IQ and MOT MLU, which gave extremely similar results to the three-way interaction.
+
+# Both of these models were scrapped in favour of the simpler models above, since the improvement in RMSE was extremely negligible.
+
+# By far, most of the variables (Ados1, Socialization, types_MOT, et cetera) changed almost nothing about the end RMSE score if we added them to the model (mean RMSE ended up in the .54 range in either case).
+# We had both practical problems (in terms of the above for loops not working) and theoretical problems with including Ethnicity as a variable (since most of the levels of ethnicity has only one or two observations, meaning high chances of spurious results).
 
 
 
@@ -252,8 +254,24 @@ mean(RMSE3)
 
 #- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
 
-##========
-##========< NOT FINISHED YET 
+#We tested out a bunch of different things using the following for-loop. Shown below is one of the only combinations we found that made even a small improvement.
+RMSE3 <- numeric(5)
+for(i in 1:5){
+  # Make two subsets:
+  test_df <- folded_1 %>%  subset(.folds == i)
+  train_df <- folded_1 %>%  subset(.folds != i)
+  # make a model where you regress the train_df
+  mod <- lmerTest::lmer(CHI_MLU ~ Visit*Diagnosis*verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = train_df, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
+  #predict "test_df" based on "mod"
+  prediction <- predict(mod, test_df, allow.new.levels = TRUE)
+  RMSE3[i] <- rmse(test_df$CHI_MLU, prediction)
+}
+mean(RMSE3) # Adding interaction effects with Verbal IQ at visit 1 lowers the RMSE... by 0.04 morphemes of error. Which is almost nothing. We also tried doing a four-way interaction between visit, diagnosis, verbal IQ and MOT MLU, which gave extremely similar results to the three-way interaction.
+
+# Both of these models were scrapped in favour of the simpler models above, since the improvement in RMSE was extremely negligible.
+
+# By far, most of the variables (Ados1, Socialization, types_MOT, et cetera) changed almost nothing about the end RMSE score if we added them to the model (mean RMSE ended up in the .54 range in either case).
+# We had both practical problems (in terms of the above for loops not working) and theoretical problems with including Ethnicity as a variable (since most of the levels of ethnicity has only one or two observations, meaning high chances of spurious results).
 
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
 
