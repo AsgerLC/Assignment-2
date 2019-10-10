@@ -122,38 +122,38 @@ data <- data[complete.cases(data[,c("CHI_MLU","Visit","Diagnosis","verbalIQ1","C
 data$Child.ID <- as.factor(data$Child.ID)
 
 # Defining our favourite model.
-fav <- lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = data, REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE, optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
+fav <- lmer(CHI_MLU ~ Visit*Diagnosis + verbalIQ1 + MOT_MLU + (1|Child.ID) + (0 + Visit|Child.ID), data = data, REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE, optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10)))
 summary(fav) # Everything is still significant, wonderful and bliss.
 
 # Simulating the power of our interaction effect.
 
 # First we evaluate power for our interaction effect.
-int_sim = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 1000, seed = 1, progress = F) 
+int_sim = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 50, seed = 1, progress = F) 
 int_sim # Power of 100%! Of course, this is an observed power calculations.
 
 # And now for verbal IQ at visit 1
-vIQsim = powerSim(fav, fixed("verbalIQ1"), nsim = 1000, seed = 1, progress = F)
+vIQsim = powerSim(fav, fixed("verbalIQ1"), nsim = 50, seed = 1, progress = F)
 vIQsim #100% power!
 
 # Mother's MLU
-momsim = powerSim(fav, fixed("MOT_MLU"), nsim = 1000, seed = 1, progress = F)
+momsim = powerSim(fav, fixed("MOT_MLU"), nsim = 50, seed = 1, progress = F)
 momsim #100% Power!
 
 
 fav_extend <- extend(fav, along = "Child.ID", n = 120) #extend data along child ID to simulate 120 participants.
 
 # plot the powercurve for the interaction effect
-int_curve = powerCurve(fav_extend, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 500, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+int_curve = powerCurve(fav_extend, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
 
 plot(int_curve)  # Interestingly, we get power of 100% even for 10 participants. Again, observed power calculations.
 
 # plot the powercurve for the the mother's MLU
-mom_curve = powerCurve(fav_extend, fixed("MOT_MLU"), along = "Child.ID", nsim = 500, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+mom_curve = powerCurve(fav_extend, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
 
 plot(mom_curve)  # Interestingly, we get power of 100% even for 10 participants. Again, observed power calculations.
 
 # plot the powercurve for the Verbal IQ of visit 1
-IQ_curve = powerCurve(fav_extend, fixed("verbalIQ1"), along = "Child.ID", nsim = 500, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+IQ_curve = powerCurve(fav_extend, fixed("verbalIQ1"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
 
 plot(IQ_curve)  # Interestingly, we get power of 100% even for 10 participants. Again, observed power calculations.
 
@@ -174,16 +174,16 @@ How would you perform a more conservative power analysis?
 # First we specify the smallest effect of interest of the interaction between visit and diagnosis.
 
 fixef(fav)["Visit:DiagnosisTD"] <- 0.5 # we set the fixed effect to 0.5; a difference of half a morpheme across time and diagnosis seems to be worth paying attention to.
-int_sim2 = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 1000, seed = 1, progress = F) 
+int_sim2 = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 50, seed = 1, progress = F) 
 int_sim2 # Again, we get power of 100%. Which might not be that informative since the effect size we got for the interaction effect turned out to be exactly 0.5.
 
 
 fixef(fav)["Visit:DiagnosisTD"] <- 0.05 # Just for fun (since an effect of 0.5 gives us very high power), let's try setting the fixed effect to 0.05.
-int_sim3 = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 1000, seed = 1, progress = F) 
+int_sim3 = powerSim(fav, fixed("Visit:Diagnosis"), nsim = 50, seed = 1, progress = F) 
 int_sim3 # Power of 41.10%. In other words, very low power indeed.
 
 # plot the powercurve of the interaction (using the extended model "fav_extend" specified earlier), for an effect size of 0.05
-int_curve2 = powerCurve(fav_extend, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 500, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+int_curve2 = powerCurve(fav_extend, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
 
 plot(int_curve2)
 int_curve2 # Roundabouts 85 participants would be necessary to detect an effect size of such small magnitude 80% of the time.
@@ -192,12 +192,12 @@ int_curve2 # Roundabouts 85 participants would be necessary to detect an effect 
 
 # Now for verbal IQ at visit 1:
 fixef(fav)["verbalIQ1"] <- 0.1 # We expect verbal IQ at visit 1 to account for a less dramatic difference in the kids MLU, than Visit and Diagnosis.
-vIQsim2 = powerSim(fav, fixed("verbalIQ1"), nsim = 1000, seed = 1, progress = F)
+vIQsim2 = powerSim(fav, fixed("verbalIQ1"), nsim = 50, seed = 1, progress = F)
 vIQsim2 #100% power!
 
 
 # We make the power curve and plot it
-IQ_curve2 = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 500, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+IQ_curve2 = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
 plot(IQ_curve2)
 IQ_curve2
 # 100% power with 10 participants? Either we are doing something wrong or the effect is very robust (which makes sense; verbal IQ and Child MLU seem to measure the same).
@@ -205,11 +205,11 @@ IQ_curve2
 
 # And now for the mother's MLU
 fixef(fav)["MOT_MLU"] <- 0.1 # We likewise expect mother's MLU at visit 1 to account for a less dramatic difference in the kids MLU, than Visit and Diagnosis.
-momsim2 = powerSim(fav, fixed("MOT_MLU"), nsim = 1000, seed = 1, progress = F)
+momsim2 = powerSim(fav, fixed("MOT_MLU"), nsim = 50, seed = 1, progress = F)
 momsim2 #80% Power! [Probably needs more sims]
 
 # We make the power curve and plot it
-mom_curve2 = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 500, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
+mom_curve2 = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 120, by = 5), seed = 1, progress = F)
 plot(mom_curve2)
 mom_curve2
 # We need more participants than 120 to get a proper estimate of power.
@@ -218,7 +218,7 @@ mom_curve2
 fav_extend150 <- extend(fav, along = "Child.ID", n = 150) # Extend data along child ID to simulate 150 participants.
 
 # plot the powercurve
-mom_curve3 = powerCurve(fav_extend150, fixed("MOT_MLU"), along = "Child.ID", nsim = 500, breaks = seq(from = 10, to = 150, by = 5), seed = 1, progress = F)
+mom_curve3 = powerCurve(fav_extend150, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 10, to = 150, by = 5), seed = 1, progress = F)
 mom_curve3
 plot(mom_curve3) # At roundabouts 70 participantes we get a jump to 90% power.
 
@@ -234,14 +234,14 @@ Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). 
 
 # Firstly, we try to test for an effect of 0.5 (our minimal effect of interest) for the interaction.
 fixef(fav)["Visit:DiagnosisTD"] <- 0.5
-int_30_curve = powerCurve(fav, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 500, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
+int_30_curve = powerCurve(fav, fixed("Visit:Diagnosis"), along = "Child.ID", nsim = 10, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
 int_30_curve # We get 100% power to detect an effect size of 0.5 even with three participants! To be fair, that is a rather large effect. In other words, if we expect an effect of this size, then the study is worth running even with only 30 participants.
 plot(int_30_curve)
 
 
 # Now for verbal IQ at visit 1:
 fixef(fav)["verbalIQ1"] <- 0.1
-vIQ_30_curve = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 500, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
+vIQ_30_curve = powerCurve(fav, fixed("verbalIQ1"), along = "Child.ID", nsim = 10, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
 vIQ_30_curve
 plot(vIQ_30_curve)
 
@@ -250,7 +250,7 @@ plot(vIQ_30_curve)
 
 # Now for mother MLU:
 fixef(fav)["MOT_MLU"] <- 0.1
-mom_30_curve = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 500, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
+mom_30_curve = powerCurve(fav, fixed("MOT_MLU"), along = "Child.ID", nsim = 10, breaks = seq(from = 3, to = 30, by = 3), seed = 1, progress = F)
 mom_30_curve
 plot(mom_30_curve)
 
