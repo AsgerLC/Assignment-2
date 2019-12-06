@@ -112,6 +112,8 @@ Make sure the variables are in the right format.
 Describe the characteristics of the two groups of participants and whether the two groups are well matched.
 
 ```{r descriptive stats, include = FALSE}
+pacman::p_load(pacman, tidyverse)
+
 #We have two tasks:
 # 1. Describe your sample (n, age, gender, clinical and cognitive features of the two groups)
 # 2. Critically assess whether the groups (ASD and TD) are balanced
@@ -149,7 +151,10 @@ TD1 <- visit1 %>% filter(diagnosis == "B")
 ##Eyeballing the dataframes.
 
 summary(ASD1)
+sd(ASD1$age) # Calculating standard deviation
+
 summary(TD1)
+sd(TD1$age) # Calculating standard deviation
 
 #The two groups are fairly balanced in terms and gender. ASD kids have lower mean socialization scores than TD kids, though similar scores in nonverbal IQ and only slightly lower verbal IQ scores. Initially, the mean MLU of both mother and children are similar across groups, and so are mean types of mother and child across groups. Interestingly, however, the age-matching isn't quite right. ASD kids have a mean age of 33 months compared to 20 for TD kids, and a much larger spread of age (19-42 compared with 18-24). In short, on average the ASD kids are older.
 ```
